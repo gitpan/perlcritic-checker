@@ -1,0 +1,7 @@
+How to install & configre
+
+1. less README
+2. perl ./Makefile.PL
+3. make
+4. make test
+5. sudo make install

@@ -1,0 +1,20 @@
+--- #YAML:1.0
+name:                perlcritic-checker
+version:             1.2
+abstract:            Perl::Critic Subversion Hook
+license:             gpl
+author:              
+    - Alexander Simakov <xdr (dot) box (at) Google Mail>
+generated_by:        ExtUtils::MakeMaker version 6.42
+distribution_type:   module
+requires:     
+    File::Copy::Recursive:         0
+    Perl::Critic:                  0
+    Pod::Usage:                    0
+    Readonly:                      0
+    SVN::Look:                     0
+    Term::ANSIColor:               0
+    Test::Command:                 0
+meta-spec:
+    url:     http://module-build.sourceforge.net/META-spec-v1.3.html
+    version: 1.3

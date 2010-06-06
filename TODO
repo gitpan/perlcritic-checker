@@ -1,0 +1,11 @@
+TODO list:
+
+- Implement 'progressive_mode' and 'allow_energency_commits'
+  per path-pattern
+
+- Implement config validation
+
+- Use youngest() method from newest version of SVN::Look
+
+If you have suggestions on how to improve this program
+please send me an email.

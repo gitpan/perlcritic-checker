@@ -1,0 +1,34 @@
+Revision history for perlcritic-checker
+
+version 1.2
+
+- max_violations option is added
+
+- Code refactoring
+
+version 1.1
+
+- Progressive mode: don't complain about existing violations
+  but prevent intriducing new ones
+
+- Emergency comments: if you are *really* in hurry,
+  svn ci -m "NO CRITIC: emergency bugfix" FooBar.pm
+
+- Relative profile paths in perlcritic-checker's config are
+  mapped under $REPOS/hooks/perlcritic.d directory
+
+- Improved violations sorting method:
+  severity -> policy name -> line number -> column number
+    +
+  progressive report
+  severity -> min. number of fixes -> policy name
+
+- Test sute
+
+- Hash based config
+
+- Improved debugging facilities with Smart::Comments
+
+version 1.0
+
+- Initial version

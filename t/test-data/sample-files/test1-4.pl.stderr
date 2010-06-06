@@ -1,0 +1,7 @@
+svn: Commit failed (details follow):
+svn: Commit blocked by pre-commit hook (exit code 1) with output:
+test1.pl: [TestingAndDebugging::RequireUseStrict] Code before strictures are enabled at line 11, column 1.  (Severity: 5)
+---
+You can bypass all checks by placing 'NO CRITIC' in the begining of the comment message,
+e.g.: svn ci -m "NO CRITIC: emergency hotfix" FooBar.pm
+
