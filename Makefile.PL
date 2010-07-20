@@ -6,14 +6,14 @@ use warnings;
 use ExtUtils::MakeMaker;
 
 WriteMakefile(
-    NAME      => 'perlcritic-checker',
-    AUTHOR    => 'Alexander Simakov <xdr (dot) box (at) Google Mail>',
-    ABSTRACT  => 'Perl::Critic Subversion Hook',
-    VERSION   => '1.2',
-    LICENSE   => 'gpl',
-    EXE_FILES => ['bin/perlcritic-checker.pl'],
-    PL_FILES  => {},
-    PREREQ_PM => {
+    NAME         => 'perlcritic-checker',
+    AUTHOR       => 'Alexander Simakov <xdr (dot) box (at) Google Mail>',
+    ABSTRACT     => 'Perl::Critic Subversion Hook',
+    VERSION_FROM => 'bin/perlcritic-checker.pl',
+    LICENSE      => 'gpl',
+    EXE_FILES    => ['bin/perlcritic-checker.pl'],
+    PL_FILES     => {},
+    PREREQ_PM    => {
         'Readonly'              => 0,
         'Pod::Usage'            => 0,
         'SVN::Look'             => 0,

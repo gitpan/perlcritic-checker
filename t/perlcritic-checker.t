@@ -1,14 +1,14 @@
 #!/usr/bin/perl
 
 #===============================================================================
-#     REVISION:  $Id: perlcritic-checker.t 2 2010-06-04 13:42:47Z xdr.box $
+#     REVISION:  $Id: perlcritic-checker.t 7 2010-07-19 13:31:50Z xdr.box $
 #  DESCRIPTION:  Tests for perlcritic-checker.pl script
 #===============================================================================
 
 use strict;
 use warnings;
 
-our $VERSION = qw($Revision: 2 $) [1];
+our $VERSION = qw($Revision: 7 $) [1];
 
 use FindBin qw($Bin);
 FindBin::again();
@@ -22,12 +22,11 @@ use Carp;
 use Cwd;
 use English qw(-no_match_vars);
 use File::Temp qw/tempdir/;
-use Test::More;
+
+use Test::More tests => 46;
 use Test::Command;
 
 #use Smart::Comments;
-
-Readonly my $NUMBER_OF_TESTS => 46;
 
 Readonly my $EXIT_OK   => 0;
 Readonly my $EXIT_FAIL => 1;
@@ -39,32 +38,6 @@ $ENV{'PATH'}        = '/usr/local/bin:/usr/bin:/bin';
 
 # Uncomment this to keep test repo after finish
 #$ENV{'REPO_CLEANUP'} = 0;
-
-#-------------------------------------------------------------------------------
-#  Check that Subversion is installed
-#-------------------------------------------------------------------------------
-sub has_svn {
-CMD:
-    for my $cmd (qw{svn svnadmin svnlook}) {
-        for my $path ( path() ) {
-            next CMD if -x catfile( $path, $cmd );
-        }
-        return 0;
-    }
-
-    return 1;
-}
-
-#-------------------------------------------------------------------------------
-#  Check that Perl::Critic is installed
-#-------------------------------------------------------------------------------
-sub has_perlcritic {
-    for my $path ( path() ) {
-        return 1 if -x catfile( $path, 'perlcritic' );
-    }
-
-    return 0;
-}
 
 #-------------------------------------------------------------------------------
 #  Create temporary directory for svn repository & working copy.
@@ -164,19 +137,6 @@ sub get_stderr_for {
 
     return "$Bin/test-data/sample-files/$file.stderr";
 }
-
-#-------------------------------------------------------------------------------
-#  Skip all tests if required tools are not installed
-#-------------------------------------------------------------------------------
-if ( !has_svn() ) {
-    plan( skip_all => 'Subversion is not installed' );
-}
-
-if ( !has_perlcritic() ) {
-    plan( skip_all => 'Perl::Critic is not installed' );
-}
-
-plan( tests => $NUMBER_OF_TESTS );
 
 #-------------------------------------------------------------------------------
 #  Create repository

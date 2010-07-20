@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                perlcritic-checker
-version:             1.2
+version:             1.2.1
 abstract:            Perl::Critic Subversion Hook
 license:             gpl
 author:              

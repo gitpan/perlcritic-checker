@@ -19,9 +19,24 @@ USAGE EXAMPLE
     /abs/path/to/perlcritic-checker.conf -t $TXN || exit 1
 
 DESCRIPTION
-    This script checks Perl code using Perl::Critic module. It is assumed
-    that it will be invoked from Subversion's pre-commit hook. This way you
-    can fine tune and automate code quality control.
+    perlcritic-checker is a subversion hook that allows commits to go
+    through if and only if the code passes validation using Perl::Critic
+    module. This way you can apply consistent coding practices inside your
+    team.
+
+    Main features:
+
+    *   you can specify different Perl::Critic's profiles for different
+        paths in your repository
+
+    *   you can bypass checks when you do need this
+
+    *   you can apply the checker to your existing large legacy Perl project
+        by using "progressive mode" feature: in progressive mode
+        perlcritic-checker doesn't complain about existing violations but
+        prevents introducing new ones
+
+    *   perlcritic-checker comes with a test suite
 
 CONFIGURATION FILE
     Configuration file example follows. In fact, it's a ordinary Perl hash.
@@ -126,6 +141,7 @@ AUTHOR
     Alexander Simakov, <xdr (dot) box (at) Google Mail>
 
     http://alexander-simakov.blogspot.com/
+
     http://code.google.com/p/perlcritic-checker
 
 LICENSE AND COPYRIGHT

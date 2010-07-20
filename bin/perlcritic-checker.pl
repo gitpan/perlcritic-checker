@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 #
-# $Id: perlcritic-checker.pl 5 2010-06-06 10:00:34Z xdr.box $
+# $Id: perlcritic-checker.pl 11 2010-07-19 15:34:19Z xdr.box $
 #
 # Subversion pre-commit hook script for checking
 # Perl-code using Perl::Critic module
@@ -31,7 +31,7 @@
 use strict;
 use warnings;
 
-our $VERSION = '1.2';
+our $VERSION = '1.2.1';
 
 use Readonly;
 use English qw(-no_match_vars);
@@ -701,10 +701,27 @@ Put this into your Subversion's pre-commit hook:
 
 =head1 DESCRIPTION
 
-This script checks Perl code using Perl::Critic module.
-It is assumed that it will be invoked from Subversion's
-pre-commit hook. This way you can fine tune and automate
-code quality control.
+perlcritic-checker is a subversion hook that allows commits to go through
+if and only if the code passes validation using Perl::Critic module.
+This way you can apply consistent coding practices inside your team.
+
+Main features:
+
+=over 4
+
+=item * you can specify different Perl::Critic's profiles for different
+paths in your repository
+
+=item * you can bypass checks when you do need this
+
+=item * you can apply the checker to your existing large legacy Perl
+project by using "progressive mode" feature: in progressive mode
+perlcritic-checker doesn't complain about existing violations but prevents
+introducing new ones
+
+=item * perlcritic-checker comes with a test suite
+
+=back
 
 =head1 CONFIGURATION FILE
 
