@@ -4,6 +4,12 @@ use strict;
 use warnings;
 
 use ExtUtils::MakeMaker;
+use File::Spec::Functions qw(catfile path);
+
+if ( !has_subversion() ) {
+    print "Subversion is not installed\n";
+    exit 0;
+}
 
 WriteMakefile(
     NAME         => 'perlcritic-checker',
@@ -25,3 +31,15 @@ WriteMakefile(
     dist  => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean => { FILES    => 'perlcritic-checker-*' },
 );
+
+sub has_subversion {
+CMD:
+    for my $cmd (qw{svn svnadmin svnlook}) {
+        for my $path ( path() ) {
+            next CMD if -x catfile( $path, $cmd );
+        }
+        return 0;
+    }
+
+    return 1;
+}

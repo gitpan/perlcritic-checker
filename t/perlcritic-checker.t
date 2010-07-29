@@ -1,18 +1,19 @@
 #!/usr/bin/perl
 
 #===============================================================================
-#     REVISION:  $Id: perlcritic-checker.t 7 2010-07-19 13:31:50Z xdr.box $
+#     REVISION:  $Id: perlcritic-checker.t 15 2010-07-29 10:14:21Z xdr.box $
 #  DESCRIPTION:  Tests for perlcritic-checker.pl script
 #===============================================================================
 
 use strict;
 use warnings;
 
-our $VERSION = qw($Revision: 7 $) [1];
+our $VERSION = qw($Revision: 15 $) [1];
 
 use FindBin qw($Bin);
 FindBin::again();
 
+use Config;
 use Readonly;
 use File::Spec::Functions qw/catfile path/;
 use File::Copy::Recursive qw(rcopy);
@@ -73,7 +74,7 @@ sub configure_hook {
 
 REPOS="\$1"
 TXN="\$2"
-\$REPOS/hooks/perlcritic-checker.pl --repository "\$REPOS" --config "\$REPOS/hooks/$config" --transaction "\$TXN" || exit 1
+$Config{'perlpath'} \$REPOS/hooks/perlcritic-checker.pl --repository "\$REPOS" --config "\$REPOS/hooks/$config" --transaction "\$TXN" || exit 1
 exit 0
 END_SCRIPT
 

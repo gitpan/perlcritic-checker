@@ -1,5 +1,5 @@
 NAME
-    perlcritic-checker.pl - Tool for automating code quality control
+    perlcritic-checker.pl - Perl::Critic Subversion Hook
 
 SYNOPSIS
     perlcritic-checker.pl [options]

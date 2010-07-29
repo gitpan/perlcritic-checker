@@ -1,5 +1,11 @@
 Revision history for perlcritic-checker
 
+version 1.2.2 - 2010-07-29
+
+- Use $Config{'perlpath'} is tests
+
+- Subversion check is moved to Makefile.PL
+
 version 1.2.1 - 2010-07-20
 
 - Minor adjustments in tests

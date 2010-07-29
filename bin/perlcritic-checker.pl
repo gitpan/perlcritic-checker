@@ -1,10 +1,9 @@
 #!/usr/bin/perl
 
 #
-# $Id: perlcritic-checker.pl 11 2010-07-19 15:34:19Z xdr.box $
+# $Id: perlcritic-checker.pl 15 2010-07-29 10:14:21Z xdr.box $
 #
-# Subversion pre-commit hook script for checking
-# Perl-code using Perl::Critic module
+# Perl::Critic Subversion Hook
 #
 # Copyright (C) 2009-2010 Alexander Simakov, <xdr (dot) box (at) Google Mail>
 # http://alexander-simakov.blogspot.com/
@@ -31,7 +30,7 @@
 use strict;
 use warnings;
 
-our $VERSION = '1.2.1';
+our $VERSION = '1.2.2';
 
 use Readonly;
 use English qw(-no_match_vars);
@@ -678,7 +677,7 @@ __END__
 
 =head1 NAME
 
-perlcritic-checker.pl - Tool for automating code quality control
+perlcritic-checker.pl - Perl::Critic Subversion Hook
 
 =head1 SYNOPSIS
 
