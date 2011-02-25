@@ -1,0 +1,1 @@
+Pre-commit file with violations then change comment line (minor change) and try to force commit with 'NO CRITIC' which is disabled in config, progressive_mode => 0, allow_emergency_commits => 0

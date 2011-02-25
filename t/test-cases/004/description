@@ -1,0 +1,1 @@
+Add violations into existing file and try to force commit with 'NO CRITIC' (disabled in config), progressive_mode => 1, allow_emergency_commits => 0

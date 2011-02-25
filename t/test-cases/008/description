@@ -1,0 +1,1 @@
+Minimal but valid perlcritic-checker's config. File with violations but there are no matching rules in config to check file and reject commit

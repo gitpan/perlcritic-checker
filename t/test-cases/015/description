@@ -1,0 +1,1 @@
+Add many violations (>50) into file in progressive mode without max_violations limit, progressive_mode => 1, allow_emergency_commits => 1

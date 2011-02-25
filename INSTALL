@@ -1,7 +1,76 @@
-How to install & configre
+== HOW-TO install and configure perlcritic-checker.pl ==
 
-1. less README
-2. perl ./Makefile.PL
-3. make
-4. make test
-5. sudo make install
+1. Unpack archive
+
+# tar -xzf perlcritic-checker-X.Y.Z.tar.gz
+# cd perlcritic-checker-X.Y.Z
+
+2. Configure, test and install
+
+# perl ./Makefile.PL
+# make
+# make test
+# make install
+
+3. Create SVN repository
+
+If you already have one, please skip this step.
+
+# export SVN_REPO=/var/lib/svn
+# svnadmin create $SVN_REPO
+
+4. Install perlcritic-checker's config, perlcritic's profiles and perltidy's config
+
+You can start with examples from the distribution and adjust
+them to fit your requirements.
+
+# cp --verbose ./examples/perlcritic-checker.conf $SVN_REPO/hooks
+# cp --recursive --verbose ./examples/perlcritic.d $SVN_REPO/hooks
+# cp --verbose ./examples/perltidyrc /etc
+
+5. Install pre-commit hook
+
+# cp --verbose ./examples/pre-commit $SVN_REPO/hooks
+
+Note: if you already have SVN pre-commit hook installed, just add this
+somewhere before final 'exit 0':
+
+==8<==
+PREFIX="/usr/local"
+
+# Make sure that Perl code comply to coding standards
+$PREFIX/bin/perlcritic-checker.pl                        \
+    --repository  "$REPOS"                               \
+    --config      "$REPOS/hooks/perlcritic-checker.conf" \
+    --transaction "$TXN" || exit 1
+==8<==
+
+6. Test your installation
+
+Create test directory in SVN repo and check it out:
+
+# export WORK_COPY="/tmp/perlcritic-checker-test"
+# svn mkdir file://$SVN_REPO/perlcritic-checker-test -m ""
+# svn checkout file://$SVN_REPO/perlcritic-checker-test $WORK_COPY
+
+Copy 'good' and 'bad' files into WC
+
+# cp --verbose ./examples/good_file.pl $WORK_COPY
+# cp --verbose ./examples/bad_file.pl $WORK_COPY
+# cd $WORK_COPY
+
+Commit good file (should be OK)
+
+# svn add good_file.pl
+# svn commit -m "This one should be OK" good_file.pl
+
+Try to commit bad file (should fail):
+
+# svn add bad_file.pl
+# svn commit -m "This one should fail" bad_file.pl
+
+Force commit with 'NO CRITIC' prefix (should be OK):
+
+# svn commit bad_file.pl -m "NO CRITIC: I am in hurry"
+
+7. Consult `perldoc perlcritic-checker.pl' for more information

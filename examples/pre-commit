@@ -1,0 +1,20 @@
+#!/bin/bash
+
+#
+# $Id: pre-commit 54 2011-02-25 12:06:01Z xdr.box $
+#
+# SVN pre-commit hook script example
+#
+
+REPOS="$1"
+TXN="$2"
+PREFIX="/usr/local"
+
+# Make sure that Perl code comply to coding standards
+$PREFIX/bin/perlcritic-checker.pl                        \
+    --repository  "$REPOS"                               \
+    --config      "$REPOS/hooks/perlcritic-checker.conf" \
+    --transaction "$TXN" || exit 1
+
+# All checks have passed, so allow the commit
+exit 0

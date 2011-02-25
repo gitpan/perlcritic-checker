@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 #
-# $Id: perlcritic-checker.pl 15 2010-07-29 10:14:21Z xdr.box $
+# $Id: perlcritic-checker.pl 51 2011-02-24 18:09:46Z xdr.box $
 #
 # Perl::Critic Subversion Hook
 #
@@ -30,7 +30,7 @@
 use strict;
 use warnings;
 
-our $VERSION = '1.2.2';
+our $VERSION = '1.2.3';
 
 use Readonly;
 use English qw(-no_match_vars);
@@ -266,9 +266,10 @@ sub get_profile_for {
     my $profiles = $Config->{'profiles'};
 
     my $last_match = last_value { $file =~ $_->{'pattern'} } @{$profiles};
-    return if !defined $last_match;
+    return if !defined $last_match;    # no match at all
 
     my $profile = $last_match->{'profile'};
+    return if !defined $profile;    # file is explicitly marked to be ignored
 
     if ( !file_name_is_absolute($profile) ) {
         ### relative profile path: $profile

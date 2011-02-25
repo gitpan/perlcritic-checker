@@ -1,0 +1,1 @@
+Add file with many (>50) violations, progressive_mode => 0, allow_emergency_commits => 0, max_violations => 50

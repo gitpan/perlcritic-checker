@@ -1,464 +1,455 @@
 #!/usr/bin/perl
 
 #===============================================================================
-#     REVISION:  $Id: perlcritic-checker.t 15 2010-07-29 10:14:21Z xdr.box $
-#  DESCRIPTION:  Tests for perlcritic-checker.pl script
+#     REVISION:  $Id: perlcritic-checker.t 50 2011-02-24 17:56:51Z xdr.box $
+#  DESCRIPTION:  Tests for perlcritic-checker.pl
 #===============================================================================
 
 use strict;
 use warnings;
 
-our $VERSION = qw($Revision: 15 $) [1];
+our $VERSION = qw($Revision: 50 $) [1];
+
+use Readonly;
+use Config;
+use English qw( -no_match_vars );
+use File::Spec::Functions qw( catfile path );
+use File::Temp qw(tempdir);
+use Carp;
+
+#use Smart::Comments;
 
 use FindBin qw($Bin);
 FindBin::again();
 
-use Config;
-use Readonly;
-use File::Spec::Functions qw/catfile path/;
-use File::Copy::Recursive qw(rcopy);
-use File::Copy;
-use File::Basename;
-use Carp;
-use Cwd;
-use English qw(-no_match_vars);
-use File::Temp qw/tempdir/;
-
-use Test::More tests => 46;
+use Test::More;
 use Test::Command;
 
-#use Smart::Comments;
-
-Readonly my $EXIT_OK   => 0;
-Readonly my $EXIT_FAIL => 1;
-Readonly my $EMPTY_STR => q{};
+Readonly my $EXTRA_TESTS         => 0;
+Readonly my $TESTS_PER_TEST_CASE => 3;
 
 # Make sure the svn messages come in English
 $ENV{'LC_MESSAGES'} = 'C';
-$ENV{'PATH'}        = '/usr/local/bin:/usr/bin:/bin';
 
-# Uncomment this to keep test repo after finish
-#$ENV{'REPO_CLEANUP'} = 0;
+#$ENV{'DONT_CLEANUP'} = 1;
+#$ENV{'RUN_ONLY_LAST_TEST'} = 1;
 
-#-------------------------------------------------------------------------------
-#  Create temporary directory for svn repository & working copy.
-#  Install perlcritic-checker svn hook, deploy test configs.
-#-------------------------------------------------------------------------------
-sub create_repo {
-    my $cleanup = exists $ENV{'REPO_CLEANUP'} ? $ENV{'REPO_CLEANUP'} : 1;
-    my $tmpdir = tempdir( 't.XXXX', DIR => getcwd(), CLEANUP => $cleanup );
+Readonly my @REQUIRED_TOOLS => qw( svn svnadmin svnlook );
 
-    my $result = system <<"EOS";
-svnadmin create '$tmpdir/repo'                                                            &&
-svn co -q file://$tmpdir/repo '$tmpdir/wc'                                                &&
-cp '$Bin/../bin/perlcritic-checker.pl' '$tmpdir/repo/hooks'                               &&
-mkdir '$tmpdir/repo/hooks/perlcritic.d'                                                   &&
-sh -c "cp \"$Bin/test-data/*.conf\" '$tmpdir/repo/hooks'"                                 &&
-sh -c "cp \"$Bin/test-data/perlcritic.d/*.conf\" '$tmpdir/repo/hooks/perlcritic.d'"
-EOS
+Readonly my $SCRIPT => catfile( $Bin, q{..}, 'bin', 'perlcritic-checker.pl' );
+### SCRIPT: $SCRIPT
+Readonly my $DATA_DIR => catfile( $Bin, 'test-cases' );
+### DATA_DIR: $DATA_DIR
+Readonly my $TMP_DIR => tempdir(
+    'perlcritic-checker.XXXX',
+    TMPDIR  => 1,
+    CLEANUP => $ENV{'DONT_CLEANUP'} ? 0 : 1,
+);
+### TMP_DIR: $TMP_DIR
 
-    croak "Failed to create test repository in '$tmpdir'" if $result != 0;
+Readonly my $CONFIG_NAME   => 'perlcritic-checker.conf';
+Readonly my $PROFILES_DIR  => 'perlcritic.d';
+Readonly my $PRECOMMIT_DIR => 'precommit_files';
 
-    return $tmpdir;
+sub get_svn_version {
+    my $version = `svn --version | grep "\\bversion\\b"`;
+    chomp $version;
+
+    return $version;
 }
 
-#-------------------------------------------------------------------------------
-#  Write custom pre-commit hook script on fly
-#-------------------------------------------------------------------------------
-sub configure_hook {
-    my $tmpdir = shift;
-    my $config = shift;    # perlcritic-checker config
+sub check_required_tools {
+TOOL:
+    foreach my $tool (@REQUIRED_TOOLS) {
+        foreach my $path ( path() ) {
+            next TOOL if -x catfile( $path, $tool );
+        }
 
-    my $hook_content = <<"END_SCRIPT";
-#!/bin/bash
+        diag("Cannot find or use '$tool' binary. PATH='$ENV{'PATH'}'");
+        return 0;
+    }
 
-REPOS="\$1"
-TXN="\$2"
-$Config{'perlpath'} \$REPOS/hooks/perlcritic-checker.pl --repository "\$REPOS" --config "\$REPOS/hooks/$config" --transaction "\$TXN" || exit 1
-exit 0
-END_SCRIPT
-
-    my $file_name = "$tmpdir/repo/hooks/pre-commit";
-    write_to_file( $file_name, $hook_content );
-
-    ## no critic (ProhibitMagicNumbers)
-    chmod 0755, $file_name
-        or croak "Cannot chmod 755 file '$file_name': $OS_ERROR";
-
-    return;
+    return 1;
 }
 
-#-------------------------------------------------------------------------------
-#  Save data to the file
-#-------------------------------------------------------------------------------
-sub write_to_file {
+sub write_file {
     my $file_path    = shift;
     my $file_content = shift;
 
-    open my $F, '>', $file_path
+    open my $fh, '>', $file_path
         or croak "Failed to open output file '$file_path': $OS_ERROR";
 
-    print {$F} $file_content
-        or croak "Cannot write to file '$file_path': $OS_ERROR";
+    print {$fh} $file_content
+        or croak "Failed to write file '$file_path': $OS_ERROR";
 
-    close $F
+    close $fh
         or warn "Failed to close output file '$file_path': $OS_ERROR\n";
 
     return;
 }
 
-#-------------------------------------------------------------------------------
-#  Copy file for sample-files dir to the working copy
-#-------------------------------------------------------------------------------
-sub copy_file_to_wc {
-    my $tmpdir    = shift;
+sub slurp_file {
+    my $file_path = shift;
+
+    open my $fh, '<', $file_path
+        or confess "Failed to open file '$file_path': $OS_ERROR";
+    my $content = do { local $RS = undef; <$fh> };
+    close $fh or confess "Failed to close '$file_path': $OS_ERROR";
+
+    return $content;
+}
+
+sub slurp_expected_data {
+    my $test_id   = shift;
     my $file_name = shift;
-    my $save_as   = shift || $file_name;
 
-    my $src = "$Bin/test-data/sample-files/$file_name";
-    my $dst = "$tmpdir/wc/$save_as";
+    my $full_path = get_expected_path( $test_id, $file_name );
+    my $data = slurp_file($full_path);
+    chomp $data;
 
-    rcopy( $src, $dst ) or croak "Cannot copy '$src' -> '$dst': $OS_ERROR";
-    chdir dirname($dst);
+    return $data;
+}
+
+sub escape_pattern {
+    my $pattern = shift;
+
+    # Taken from http://www.perlmonks.org/?node_id=525815
+    my $in_quote = 0;
+
+    ## no critic (RequireExtendedFormatting, RequireLineBoundaryMatching)
+    $pattern =~ s{([^\\]|\\.)}{
+        if ($in_quote) {
+            if ( $1 eq '\\E' ) {
+                $in_quote = 0;
+                q{};
+            }
+            else {
+                quotemeta($1);
+            }
+        }
+        else {
+            if ( $1 eq '\\Q' ) {
+                $in_quote = 1;
+                q{};
+            }
+            else {
+                $1;
+            }
+        }
+    }eg;
+
+    return $pattern;
+}
+
+sub build_regexp {
+    my $pattern = shift;
+
+    # HACK: this way we can use \Q and \E inside *_like *_not_like files
+    my $escaped_pattern = escape_pattern($pattern);
+
+    return qr/$escaped_pattern/xms;
+}
+
+sub get_repo_path {
+    my $test_id = shift;
+
+    return catfile( $TMP_DIR, $test_id, 'repo' );
+}
+
+sub get_wc_path {
+    my $test_id = shift;
+
+    return catfile( $TMP_DIR, $test_id, 'wc' );
+}
+
+sub get_expected_path {
+    my $test_id   = shift;
+    my $file_name = shift;
+
+    return catfile( $DATA_DIR, $test_id, 'expected_results', $file_name );
+}
+
+sub get_log_message {
+    my $test_id = shift;
+
+    my $file_path = catfile( $DATA_DIR, $test_id, 'log_message' );
+    my $log_message = slurp_file($file_path);
+    chomp $log_message;
+
+    return $log_message;
+}
+
+sub get_coverage_report_options {
+    return q{} if !$ENV{'HARNESS_PERL_SWITCHES'};
+    ## no critic (RequireExtendedFormatting, RequireLineBoundaryMatching)
+    return q{} if $ENV{'HARNESS_PERL_SWITCHES'} !~ /Devel::Cover/;
+
+    return $ENV{'HARNESS_PERL_SWITCHES'};
+}
+
+sub configure_pre_commit_hook {
+    my $test_id = shift;
+
+    my $config_path = catfile( $DATA_DIR, $test_id, $CONFIG_NAME );
+    my $hook_name = catfile( get_repo_path($test_id), 'hooks', 'pre-commit' );
+
+    my $coverage_report_opts = get_coverage_report_options();
+
+    my $hook_content = <<"END_HOOK_CONTENT";
+#!/bin/bash
+
+REPOS="\$1"
+TXN="\$2"
+$Config{'perlpath'} $coverage_report_opts $SCRIPT --repository "\$REPOS" --config "$config_path" --transaction "\$TXN" || exit 1
+exit 0
+END_HOOK_CONTENT
+
+    write_file( $hook_name, $hook_content );
+
+    ## no critic (ProhibitMagicNumbers)
+    chmod 0755, $hook_name
+        or croak "Cannot chmod 755 file '$hook_name': $OS_ERROR";
 
     return;
 }
 
-#-------------------------------------------------------------------------------
-#  Handy functions get .stdout and .stderr files for a given file
-#-------------------------------------------------------------------------------
-sub get_stdout_for {
-    my $file = shift;
+sub setup_repo {
+    my $test_id = shift;
 
-    return "$Bin/test-data/sample-files/$file.stdout";
+    my $repo_path = get_repo_path($test_id);
+    my $wc_path   = get_wc_path($test_id);
+
+    my $test_dir = catfile( $TMP_DIR, $test_id );
+
+    my $perlcritic_d_link_from
+        = catfile( $repo_path, 'hooks', $PROFILES_DIR );
+    my $perlcritic_d_link_to = catfile( $DATA_DIR, $test_id, $PROFILES_DIR );
+
+    my $command = <<"END_COMMAND";
+mkdir '$test_dir' &&
+svnadmin create '$repo_path' &&
+svn checkout 'file://$repo_path' '$wc_path' &&
+ln --verbose --symbolic '$perlcritic_d_link_to' '$perlcritic_d_link_from'
+END_COMMAND
+    ### create svn repo command: $command
+
+    system $command;
+    if ( $CHILD_ERROR != 0 ) {
+        confess "Cannot create SVN repository. Command: '$command'";
+    }
+
+    precommit_files($test_id);
+    configure_pre_commit_hook($test_id);
+
+    return;
 }
 
-sub get_stderr_for {
-    my $file = shift;
+sub precommit_files {
+    my $test_id = shift;
 
-    return "$Bin/test-data/sample-files/$file.stderr";
+    my $wc_path   = get_wc_path($test_id);
+    my $from_path = catfile( $DATA_DIR, $test_id, $PRECOMMIT_DIR );
+    my $to_path   = catfile( $wc_path, $PRECOMMIT_DIR );
+
+    return if !-d $from_path;
+
+    my $command = <<"END_COMMAND";
+cp --recursive --verbose '$from_path' '$wc_path' &&
+find '$to_path' -name '.svn' -type d | xargs rm -frdv &&
+mv --verbose $to_path/* '$wc_path' &&
+rmdir '$to_path' &&
+pushd '$wc_path' &&
+svn add * &&
+svn commit -m "pre-commit files" *
+popd
+END_COMMAND
+    ### pre-commit files to svn repo command: $command
+
+    system $command;
+    if ( $CHILD_ERROR != 0 ) {
+        confess
+            "Cannot pre-commit files to SVN repository. Command '$command'";
+    }
+
+    return;
 }
 
-#-------------------------------------------------------------------------------
-#  Create repository
-#-------------------------------------------------------------------------------
-my $tmpdir = create_repo();
-### tmpdir: $tmpdir
+sub add_files {
+    my $test_id = shift;
 
-#-------------------------------------------------------------------------------
-#  Test 1: add good file
-#-------------------------------------------------------------------------------
-{
-    configure_hook( $tmpdir, 'progressive_yes_allow_nocritic_yes.conf' );
-    copy_file_to_wc( $tmpdir, 'test1-1.pl', 'test1.pl' );
+    my $wc_path       = get_wc_path($test_id);
+    my $from_path     = catfile( $DATA_DIR, $test_id, 'files' );
+    my $wc_files_path = catfile( $wc_path, 'files' );
 
-    my $test_name = 'add + ci test1.pl (version 1, no violations)';
-    my $cmd       = Test::Command->new(
-        cmd => q{svn add 'test1.pl' && svn ci -m 'commit1' test1.pl} );
+    my $command = <<"END_COMMAND";
+cp --recursive --verbose '$from_path' '$wc_path' &&
+find '$wc_files_path' -name '.svn' -type d | xargs rm -frdv &&
+mv --verbose $wc_files_path/* '$wc_path' &&
+rmdir '$wc_files_path' &&
+pushd '$wc_path' &&
+svn --quiet add * &&
+popd
+END_COMMAND
+    ### add files to svn repo command: $command
 
-    $cmd->run();
-    $cmd->exit_is_num( $EXIT_OK, "$test_name: exit code is OK" );
-    $cmd->stdout_is_file( get_stdout_for('test1-1.pl'),
-        "$test_name: check STDOUT" );
-    $cmd->stderr_is_file( get_stderr_for('test1-1.pl'),
-        "$test_name: check STDERR" );
+    system $command;
+    if ( $CHILD_ERROR != 0 ) {
+        confess "Cannot add files to SVN repository. Command: '$command'";
+    }
+
+    return;
 }
 
-#-------------------------------------------------------------------------------
-#  Test 2: introduce violations to the previous file: commit should fail
-#-------------------------------------------------------------------------------
-{
-    configure_hook( $tmpdir, 'progressive_yes_allow_nocritic_yes.conf' );
-    copy_file_to_wc( $tmpdir, 'test1-2.pl', 'test1.pl' );
+sub commit_files {
+    my $test_id = shift;
 
-    my $test_name = 'ci test1.pl (version 2, with violations)';
-    my $cmd = Test::Command->new( cmd => q{svn ci -m 'commit2' test1.pl} );
+    my $wc_path     = get_wc_path($test_id);
+    my $log_message = get_log_message($test_id);
 
-    $cmd->run();
-    $cmd->exit_is_num( $EXIT_FAIL, "$test_name: exit code is FAIL" );
-    $cmd->stdout_is_file( get_stdout_for('test1-2.pl'),
-        "$test_name: check STDOUT" );
-    $cmd->stderr_is_file( get_stderr_for('test1-2.pl'),
-        "$test_name: check STDERR" );
+    my $command = <<"END_COMMAND";
+pushd '$wc_path' &&
+svn commit * -m "$log_message" &&
+popd
+END_COMMAND
+    ### commit files to svn repo command: $command
+
+    my $result = Test::Command->new( cmd => $command );
+
+    return $result;
 }
 
-#-------------------------------------------------------------------------------
-#  Test 3: force commit with a special emergency comment
-#-------------------------------------------------------------------------------
-{
-    configure_hook( $tmpdir, 'progressive_yes_allow_nocritic_yes.conf' );
-    copy_file_to_wc( $tmpdir, 'test1-2.pl', 'test1.pl' );
+sub set_test_plan {
+    my $number_of_test_cases = shift;
 
-    my $test_name
-        = q{ci -m 'Please!!!' test1.pl (version 2, with violations and emergency comment)};
-    my $cmd = Test::Command->new( cmd => q{svn ci -m 'Please!!!' test1.pl} );
+    plan tests => $TESTS_PER_TEST_CASE * $number_of_test_cases + $EXTRA_TESTS;
 
-    $cmd->run();
-    $cmd->exit_is_num( $EXIT_OK, "$test_name: exit code is OK" );
-    $cmd->stdout_is_file( get_stdout_for('test1-2-NO-CRITIC.pl'),
-        "$test_name: check STDOUT" );
-    $cmd->stderr_is_file( get_stderr_for('test1-2-NO-CRITIC.pl'),
-        "$test_name: check STDERR" );
+    return;
 }
 
-#-------------------------------------------------------------------------------
-#  Test 4: emergency commits are not allowed, commit with violations should fail
-#-------------------------------------------------------------------------------
-{
-    configure_hook( $tmpdir, 'progressive_yes_allow_nocritic_no.conf' );
-    copy_file_to_wc( $tmpdir, 'test1-3.pl', 'test1.pl' );
+sub get_test_ids {
 
-    my $test_name
-        = q{ci -m 'NO CRITIC' test1.pl (version 3, with violations and emergency comment)};
-    my $cmd = Test::Command->new( cmd => q{svn ci -m 'NO CRITIC' test1.pl} );
+    # Find all dir names consisting of three digits
+    my @test_ids = sort map { $_ =~ /(?<!\d)(\d{3})\z/xms ? $1 : () }
+        grep { -d $_ } glob "$DATA_DIR/*";
 
-    $cmd->run();
-    $cmd->exit_is_num( $EXIT_FAIL, "$test_name: exit code is FAIL" );
-    $cmd->stdout_is_file( get_stdout_for('test1-3.pl'),
-        "$test_name: check STDOUT" );
-    $cmd->stderr_is_file( get_stderr_for('test1-3.pl'),
-        "$test_name: check STDERR" );
+    # Setting RUN_ONLY_LAST_TEST is useful when adding new tests
+    return ( $ENV{'RUN_ONLY_LAST_TEST'} ? $test_ids[-1] : @test_ids );
 }
 
-#-------------------------------------------------------------------------------
-#  Test 5: turn off progressive mode. commit should fail due to existing violations
-#-------------------------------------------------------------------------------
-{
-    configure_hook( $tmpdir, 'progressive_no_allow_nocritic_yes.conf' );
-    copy_file_to_wc( $tmpdir, 'test1-4.pl', 'test1.pl' );
+sub get_expected_status {
+    my $test_id = shift;
 
-    my $test_name
-        = q{ci -m '' test1.pl (version 4, non-progressive mode, with only existing violations)};
-    my $cmd = Test::Command->new( cmd => q{svn ci -m '' test1.pl} );
+    my $status = slurp_expected_data( $test_id, 'status' );
 
-    $cmd->run();
-    $cmd->exit_is_num( $EXIT_FAIL, "$test_name: exit code is FAIL" );
-    $cmd->stdout_is_file( get_stdout_for('test1-4.pl'),
-        "$test_name: check STDOUT" );
-    $cmd->stderr_is_file( get_stderr_for('test1-4.pl'),
-        "$test_name: check STDERR" );
+    if ( $status ne 'ok' and $status ne 'fail' ) {
+        confess "Invalid status '$status': Use either 'ok' or 'fail'";
+    }
+
+    return $status;
 }
 
-#-------------------------------------------------------------------------------
-#  Test 6: force previous commit with emergency comment
-#-------------------------------------------------------------------------------
-{
-    configure_hook( $tmpdir, 'progressive_no_allow_nocritic_yes.conf' );
-    copy_file_to_wc( $tmpdir, 'test1-4.pl', 'test1.pl' );
+sub get_test_description {
+    my $test_id = shift;
 
-    my $test_name
-        = q{ci -m 'NO CRITIC: emergency bugfix' test1.pl (version 4, non-progressive mode, with only existing violations and emergency comment)};
-    my $cmd = Test::Command->new(
-        cmd => q{svn ci -m 'NO CRITIC: emergency bugfix' test1.pl} );
+    my $file_name = catfile( $DATA_DIR, $test_id, 'description' );
+    my $description = slurp_file($file_name);
+    chomp $description;
 
-    $cmd->run();
-    $cmd->exit_is_num( $EXIT_OK, "$test_name: exit code is OK" );
-    $cmd->stdout_is_file( get_stdout_for('test1-4-NO-CRITIC.pl'),
-        "$test_name: check STDOUT" );
-    $cmd->stderr_is_file( get_stderr_for('test1-4-NO-CRITIC.pl'),
-        "$test_name: check STDERR" );
+    return $description;
 }
 
-#-------------------------------------------------------------------------------
-#  Test 7: non-progressive mode, emergency comments are not allowed.
-#  Commit with already existing should fail despite of any "special"
-#  comments.
-#-------------------------------------------------------------------------------
-{
-    configure_hook( $tmpdir, 'progressive_no_allow_nocritic_no.conf' );
-    copy_file_to_wc( $tmpdir, 'test1-5.pl', 'test1.pl' );
+sub check_output {
+    my $test_id     = shift;
+    my $result      = shift;
+    my $output_type = shift;
+    my $label       = shift;
 
-    my $test_name
-        = q{ci -m 'NO CRITIC: emergency bugfix' test1.pl (version 5, non-progressive mode, with only existing violations, emergency comments are not allowed)};
-    my $cmd = Test::Command->new(
-        cmd => q{svn ci -m 'NO CRITIC: emergency bugfix' test1.pl} );
+    my $like     = $output_type . '_like';
+    my $not_like = $output_type . '_not_like';
 
-    $cmd->run();
-    $cmd->exit_is_num( $EXIT_FAIL, "$test_name: exit code is FAIL" );
-    $cmd->stdout_is_file( get_stdout_for('test1-5.pl'),
-        "$test_name: check STDOUT" );
-    $cmd->stderr_is_file( get_stderr_for('test1-5.pl'),
-        "$test_name: check STDERR" );
+    if ( -e get_expected_path( $test_id, $like ) ) {
+        my $pattern = slurp_expected_data( $test_id, $like );
+        my $like_method = $output_type . '_like';
+
+        $result->$like_method( build_regexp($pattern),
+            "$label: check $output_type matches regexp" );
+    }
+    elsif ( -e get_expected_path( $test_id, $not_like ) ) {
+        my $pattern = slurp_expected_data( $test_id, $not_like );
+        my $unlike_method = $output_type . '_unlike';
+
+        $result->$unlike_method( build_regexp($pattern),
+            "$label: check $output_type doesn't match regexp" );
+    }
+    else {
+        confess
+            "Neither '$like' nor '$not_like' files found for test $test_id";
+    }
+
+    return;
 }
 
-#-------------------------------------------------------------------------------
-#  Test 8: file with violations, minimal config.
-#  Commit should succeed becasue there are no rules defined in
-#  the config
-#-------------------------------------------------------------------------------
-{
-    configure_hook( $tmpdir, 'minimal.conf' );
-    copy_file_to_wc( $tmpdir, 'test2-1.pl', 'test2.pl' );
+sub check_status {
+    my $test_id = shift;
+    my $result  = shift;
+    my $label   = shift;
 
-    my $test_name
-        = q{add + ci -m '' test2.pl (version 1, with violations, minimal config with no matching rules)};
-    my $cmd = Test::Command->new(
-        cmd => q{svn add test2.pl && svn ci -m '' test2.pl} );
+    my $expected_status = get_expected_status($test_id);
+    if ( $expected_status eq 'ok' ) {
+        $result->exit_is_num( 0, "$label: check commit is ok" );
+    }
+    else {
+        $result->exit_cmp_ok( q{!=}, 0, "$label: check commit is failed" );
+    }
 
-    $cmd->run();
-    $cmd->exit_is_num( $EXIT_OK, "$test_name: exit code is OK" );
-    $cmd->stdout_is_file( get_stdout_for('test2-1.pl'),
-        "$test_name: check STDOUT" );
-    $cmd->stderr_is_file( get_stderr_for('test2-1.pl'),
-        "$test_name: check STDERR" );
+    return;
 }
 
-#-------------------------------------------------------------------------------
-#  Test 9: Invalid config file: b0rken_a_hef.conf
-#-------------------------------------------------------------------------------
-{
-    configure_hook( $tmpdir, 'b0rken_a_hef.conf' );
-    copy_file_to_wc( $tmpdir, 'test3-1.pl', 'test3.pl' );
+sub check_result {
+    my $test_id = shift;
+    my $result  = shift;
 
-    my $test_name
-        = q{add + ci -m '' test3.pl (version 1, without violations, broken config - not a hash ref)};
-    my $cmd = Test::Command->new(
-        cmd => q{svn add test3.pl && svn ci -m '' test3.pl} );
+    my $test_description = get_test_description($test_id);
+    my $label            = "[$test_id] $test_description";
 
-    $cmd->run();
-    $cmd->exit_is_num( $EXIT_FAIL, "$test_name: exit code is FAIL" );
-    $cmd->stdout_is_file( get_stdout_for('test3-1-broken-1.pl'),
-        "$test_name: check STDOUT" );
-    ## no critic (RequireExtendedFormatting)
-    $cmd->stderr_like( qr{b0rken_a_hef[.]conf - HASH ref was expected$}ms,
-        "$test_name: check STDERR" );
+    check_status( $test_id, $result, $label );
+    check_output( $test_id, $result, 'stdout', $label );
+    check_output( $test_id, $result, 'stderr', $label );
+
+    return;
 }
 
-#-------------------------------------------------------------------------------
-#  Test 10: Invalid config file: b0rken_not_true.conf
-#-------------------------------------------------------------------------------
-{
-    configure_hook( $tmpdir, 'b0rken_not_true.conf' );
-    copy_file_to_wc( $tmpdir, 'test3-1.pl', 'test3.pl' );
+sub test_perlcritic_checker {
+    my @test_ids = get_test_ids();
+    ### test_ids: @test_ids
 
-    my $test_name
-        = q{ci -m '' test3.pl (version 1, without violations, broken config - not eval to true)};
-    my $cmd = Test::Command->new( cmd => q{svn ci -m '' test3.pl} );
+    set_test_plan( scalar @test_ids );
 
-    $cmd->run();
-    $cmd->exit_is_num( $EXIT_FAIL, "$test_name: exit code is FAIL" );
-    $cmd->stdout_is_file( get_stdout_for('test3-1-broken-2.pl'),
-        "$test_name: check STDOUT" );
-    ## no critic (RequireExtendedFormatting)
-    $cmd->stderr_like( qr{^Bad file format:}ms, "$test_name: check STDERR" );
+    foreach my $test_id (@test_ids) {
+        setup_repo($test_id);
+        add_files($test_id);
+
+        my $result = commit_files($test_id);
+
+        check_result( $test_id, $result );
+    }
+
+    return;
 }
 
-#-------------------------------------------------------------------------------
-#  Test 11: Invalid config file: b0rken_total_rubbish.conf
-#-------------------------------------------------------------------------------
-{
-    configure_hook( $tmpdir, 'b0rken_total_rubbish.conf' );
-    copy_file_to_wc( $tmpdir, 'test3-1.pl', 'test3.pl' );
+sub run_tests {
+    if ( check_required_tools() ) {
+        diag( 'svn version: ' . get_svn_version() );
+        test_perlcritic_checker();
+    }
+    else {
+        plan skip_all => 'Cannot find or use all required svn binaries';
+    }
 
-    my $test_name
-        = q{ci -m '' test3.pl (version 1, without violations, broken config - total rubbish)};
-    my $cmd = Test::Command->new( cmd => q{svn ci -m '' test3.pl} );
-
-    $cmd->run();
-    $cmd->exit_is_num( $EXIT_FAIL, "$test_name: exit code is FAIL" );
-    $cmd->stdout_is_file( get_stdout_for('test3-1-broken-3.pl'),
-        "$test_name: check STDOUT" );
-    $cmd->stderr_like(
-        qr{
-        ^
-        Semicolon[ ]seems[ ]to[ ]be[ ]missing.*
-        Cannot[ ]parse.*
-    }xms, "$test_name: check STDERR"
-    );
+    return;
 }
 
-#-------------------------------------------------------------------------------
-#  Test 12: test critic with max_violations limit in non-progressive mode
-#  Commit should fail due to existing violations
-#-------------------------------------------------------------------------------
-{
-    configure_hook( $tmpdir, 'progressive_no_max_violations_50.conf' );
-    copy_file_to_wc( $tmpdir, 'test4-1.pl', 'test4.pl' );
-
-    my $test_name
-        = q{add + commit test4.pl (max_violations=50, non-progressive mode)};
-    my $cmd = Test::Command->new(
-        cmd => q{svn add test4.pl && svn ci -m '' test4.pl} );
-
-    $cmd->run();
-    $cmd->exit_is_num( $EXIT_FAIL, "$test_name: exit code is FAIL" );
-    $cmd->stdout_is_file( get_stdout_for('test4-1.pl'),
-        "$test_name: check STDOUT" );
-    $cmd->stderr_is_file( get_stderr_for('test4-1.pl'),
-        "$test_name: check STDERR" );
-}
-
-#-------------------------------------------------------------------------------
-#  Test 13: the same file as above but there is no max_violations limit.
-#  Commit should fail, violation list shouldn't be trimmed.
-#-------------------------------------------------------------------------------
-{
-    configure_hook( $tmpdir, 'progressive_no_allow_nocritic_no.conf' );
-
-    my $test_name
-        = q{commit test4.pl (no max_violations limit, non-progressive mode)};
-    my $cmd = Test::Command->new( cmd => q{svn ci -m '' test4.pl} );
-
-    $cmd->run();
-    $cmd->exit_is_num( $EXIT_FAIL, "$test_name: exit code is FAIL" );
-    $cmd->stdout_is_file(
-        get_stdout_for('test4-1-no_max_violations-limit.pl'),
-        "$test_name: check STDOUT" );
-    $cmd->stderr_is_file(
-        get_stderr_for('test4-1-no_max_violations-limit.pl'),
-        "$test_name: check STDERR" );
-}
-
-#-------------------------------------------------------------------------------
-#  Test 14: test critic with max_violations limit in progressive mode
-#  with allowed emergency commits.
-#-------------------------------------------------------------------------------
-{
-    configure_hook( $tmpdir,
-        'progressive_yes_allow_no_critic_yes_max_violations_50.conf' );
-    copy_file_to_wc( $tmpdir, 'test5-1.pl', 'test5.pl' );
-
-    my $test_name
-        = q{add + ci test5-1.pl (max_violations=50, progressive mode, allow emergency commits)};
-    my $cmd = Test::Command->new(
-        cmd => q{svn add test5.pl && svn ci -m '' test5.pl} );
-
-    $cmd->run();
-    $cmd->exit_is_num( $EXIT_OK, "$test_name: exit code is OK" );
-
-    copy_file_to_wc( $tmpdir, 'test5-2.pl', 'test5.pl' );
-
-    $test_name
-        = q{ci test5-2.pl (second version with violations, max_violations=50, progressive mode, allow emergency commits)};
-    $cmd = Test::Command->new( cmd => q{svn ci -m '' test5.pl} );
-    $cmd->run();
-
-    $cmd->exit_is_num( $EXIT_FAIL, "$test_name: exit code is FAIL" );
-    $cmd->stdout_is_file( get_stdout_for('test5-2.pl'),
-        "$test_name: check STDOUT" );
-    $cmd->stderr_is_file( get_stderr_for('test5-2.pl'),
-        "$test_name: check STDERR" );
-}
-
-#-------------------------------------------------------------------------------
-#  Test 15: test critic on the same file as above but without max_violations limit,
-#  in progressive mode and with allowed emergency commits.
-#-------------------------------------------------------------------------------
-{
-    configure_hook( $tmpdir,
-        'progressive_yes_allow_no_critic_yes_without_max_violations.conf' );
-
-    my $test_name
-        = q{ci test5-2.pl (second version with violations,without max_violations, progressive mode, allow emergency commits)};
-    my $cmd = Test::Command->new( cmd => q{svn ci -m '' test5.pl} );
-    $cmd->run();
-
-    $cmd->exit_is_num( $EXIT_FAIL, "$test_name: exit code is FAIL" );
-    $cmd->stdout_is_file( get_stdout_for('test5-2-without-max_violations.pl'),
-        "$test_name: check STDOUT" );
-    $cmd->stderr_is_file( get_stderr_for('test5-2-without-max_violations.pl'),
-        "$test_name: check STDERR" );
-}
+run_tests();
 
 # Workaround for bug in File::Temp:
 # - http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=479317
@@ -466,4 +457,3 @@ my $tmpdir = create_repo();
 sub END {
     chdir q{/};
 }
-

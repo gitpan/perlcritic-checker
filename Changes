@@ -1,5 +1,13 @@
 Revision history for perlcritic-checker
 
+version 1.2.3 - 2011-02-25
+
+ - Bugfix in get_profile_for(): check if found profile is undef
+
+ - Test suite is completely rewritten
+
+ - Full installation and testing guide is written
+
 version 1.2.2 - 2010-07-29
 
 - Use $Config{'perlpath'} is tests
