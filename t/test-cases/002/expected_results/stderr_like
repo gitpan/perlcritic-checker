@@ -2,13 +2,11 @@
 .*?
 \Qtest1.pl: [Subroutines::ProhibitSubroutinePrototypes] Subroutine prototypes used at line 14, column 1.  (Severity: 5)
 test1.pl: [ValuesAndExpressions::ProhibitNoisyQuotes] Quotes used with a noisy string at line 11, column 22.  (Severity: 2)
-test1.pl: [NamingConventions::ProhibitMixedCaseSubs] Mixed-case subroutine name at line 14, column 1.  (Severity: 1)
 test1.pl: [ValuesAndExpressions::ProhibitInterpolationOfLiterals] Useless interpolation of literal string at line 11, column 16.  (Severity: 1)
 test1.pl: [ValuesAndExpressions::ProhibitInterpolationOfLiterals] Useless interpolation of literal string at line 11, column 22.  (Severity: 1)
 test1.pl: [ValuesAndExpressions::ProhibitInterpolationOfLiterals] Useless interpolation of literal string at line 11, column 28.  (Severity: 1)
 test1.pl: [Subroutines::ProhibitSubroutinePrototypes] You should fix at least 1 violation(s) of this type (was: 0, now: 1) (Severity: 5)
 test1.pl: [ValuesAndExpressions::ProhibitNoisyQuotes] You should fix at least 1 violation(s) of this type (was: 0, now: 1) (Severity: 2)
-test1.pl: [NamingConventions::ProhibitMixedCaseSubs] You should fix at least 1 violation(s) of this type (was: 0, now: 1) (Severity: 1)
 test1.pl: [ValuesAndExpressions::ProhibitInterpolationOfLiterals] You should fix at least 3 violation(s) of this type (was: 0, now: 3) (Severity: 1)
 ---
 You can bypass all checks by placing 'NO CRITIC' in the begining of the comment message,

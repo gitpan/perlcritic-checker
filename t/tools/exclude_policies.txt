@@ -1,16 +1,3 @@
-#
-# $Id: perlcritic-brutal.conf 60 2011-02-25 23:12:11Z xdr.box $
-#
-# Test Perl::Critic profile
-#
-
-severity = brutal
-verbose = 8
-color = 0
-profile-strictness = quiet
-theme = core || pbp
-
-[-CodeLayout::RequireTidyCode]
 
 # Disable these policies to make the test work with different versions of Perl::Critic
 [-CodeLayout::RequireUseUTF8]

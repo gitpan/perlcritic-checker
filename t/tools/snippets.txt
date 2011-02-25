@@ -1,0 +1,15 @@
+1. Append exclude_policies.txt to all perlcritic profiles under test-cases dir:
+
+    for f in `find ../test-cases/ -type f -wholename '*perlcritic.d/*.conf'`; do cat ./exclude_policies.txt >> "$f"; done
+
+2. Change profile-stricness value from fatal to quiet:
+
+    for f in `find ../test-cases/ -type f -wholename '*perlcritic.d/*.conf'`; do sed -i -e 's/profile-strictness = fatal/profile-strictness = quiet/' "$f"; done
+
+3. Append line to each perlcritic's profile:
+
+    for f in `find ../test-cases/ -type f -wholename '*perlcritic.d/*.conf'`; do echo '[-OTRS::RequireCamelCase]' >> "$f"; done
+
+4. Edit each profile:
+
+    for f in `find ../test-cases/ -type f -wholename '*perlcritic.d/*.conf'`; do vim "$f"; done

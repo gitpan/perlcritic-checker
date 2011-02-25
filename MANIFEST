@@ -11,6 +11,9 @@ examples/bad_file.pl
 examples/perlcritic.d/perlcritic-brutal.conf
 examples/good_file.pl
 examples/perlcritic-checker.conf
+t/tools/snippets.txt
+t/tools/diff-ecpected-got.pl
+t/tools/exclude_policies.txt
 t/perlcritic-checker.t
 t/test-cases/001/description
 t/test-cases/001/expected_results/status

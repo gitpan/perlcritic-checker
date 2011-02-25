@@ -1,5 +1,11 @@
 Revision history for perlcritic-checker
 
+version 1.2.4 - 2011-02-26
+
+ - Make tests less dependent on Perl::Critic's version
+
+ - Add some handy tools for maintaining test suite
+
 version 1.2.3 - 2011-02-25
 
  - Bugfix in get_profile_for(): check if found profile is undef
