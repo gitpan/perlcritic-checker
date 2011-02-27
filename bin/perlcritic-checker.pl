@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 #
-# $Id: perlcritic-checker.pl 61 2011-02-25 23:17:20Z xdr.box $
+# $Id: perlcritic-checker.pl 68 2011-02-27 16:55:01Z xdr.box $
 #
 # Perl::Critic Subversion Hook
 #
@@ -30,7 +30,7 @@
 use strict;
 use warnings;
 
-our $VERSION = '1.2.4';
+our $VERSION = '1.2.5';
 
 use Readonly;
 use English qw(-no_match_vars);

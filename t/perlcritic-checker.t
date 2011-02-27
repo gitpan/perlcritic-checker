@@ -1,14 +1,14 @@
 #!/usr/bin/perl
 
 #===============================================================================
-#     REVISION:  $Id: perlcritic-checker.t 50 2011-02-24 17:56:51Z xdr.box $
+#     REVISION:  $Id: perlcritic-checker.t 67 2011-02-27 16:54:31Z xdr.box $
 #  DESCRIPTION:  Tests for perlcritic-checker.pl
 #===============================================================================
 
 use strict;
 use warnings;
 
-our $VERSION = qw($Revision: 50 $) [1];
+our $VERSION = qw($Revision: 67 $) [1];
 
 use Readonly;
 use Config;
@@ -50,6 +50,9 @@ Readonly my $TMP_DIR => tempdir(
 Readonly my $CONFIG_NAME   => 'perlcritic-checker.conf';
 Readonly my $PROFILES_DIR  => 'perlcritic.d';
 Readonly my $PRECOMMIT_DIR => 'precommit_files';
+
+#Readonly my $VERBOSE => q{-v};
+Readonly my $VERBOSE => q{};
 
 sub get_svn_version {
     my $version = `svn --version | grep "\\bversion\\b"`;
@@ -187,6 +190,10 @@ sub get_coverage_report_options {
     return $ENV{'HARNESS_PERL_SWITCHES'};
 }
 
+sub get_recursive_rm_command {
+    return $OSNAME eq 'solaris' ? "rm -fR" : "rm $VERBOSE -fRd";
+}
+
 sub configure_pre_commit_hook {
     my $test_id = shift;
 
@@ -226,10 +233,10 @@ sub setup_repo {
     my $perlcritic_d_link_to = catfile( $DATA_DIR, $test_id, $PROFILES_DIR );
 
     my $command = <<"END_COMMAND";
-mkdir '$test_dir' &&
+mkdir $VERBOSE '$test_dir' &&
 svnadmin create '$repo_path' &&
 svn checkout 'file://$repo_path' '$wc_path' &&
-ln --verbose --symbolic '$perlcritic_d_link_to' '$perlcritic_d_link_from'
+ln $VERBOSE -s '$perlcritic_d_link_to' '$perlcritic_d_link_from'
 END_COMMAND
     ### create svn repo command: $command
 
@@ -253,15 +260,15 @@ sub precommit_files {
 
     return if !-d $from_path;
 
-    my $command = <<"END_COMMAND";
-cp --recursive --verbose '$from_path' '$wc_path' &&
-find '$to_path' -name '.svn' -type d | xargs rm -frdv &&
-mv --verbose $to_path/* '$wc_path' &&
-rmdir '$to_path' &&
-pushd '$wc_path' &&
+    my $recursive_rm = get_recursive_rm_command();
+    my $command      = <<"END_COMMAND";
+cp $VERBOSE -R '$from_path' '$wc_path' &&
+find '$to_path' -name '.svn' -type d | xargs $recursive_rm &&
+mv $VERBOSE $to_path/* '$wc_path' &&
+rmdir $VERBOSE '$to_path' &&
+cd '$wc_path' &&
 svn add * &&
 svn commit -m "pre-commit files" *
-popd
 END_COMMAND
     ### pre-commit files to svn repo command: $command
 
@@ -281,14 +288,14 @@ sub add_files {
     my $from_path     = catfile( $DATA_DIR, $test_id, 'files' );
     my $wc_files_path = catfile( $wc_path, 'files' );
 
-    my $command = <<"END_COMMAND";
-cp --recursive --verbose '$from_path' '$wc_path' &&
-find '$wc_files_path' -name '.svn' -type d | xargs rm -frdv &&
-mv --verbose $wc_files_path/* '$wc_path' &&
-rmdir '$wc_files_path' &&
-pushd '$wc_path' &&
-svn --quiet add * &&
-popd
+    my $recursive_rm = get_recursive_rm_command();
+    my $command      = <<"END_COMMAND";
+cp $VERBOSE -R '$from_path' '$wc_path' &&
+find '$wc_files_path' -name '.svn' -type d | xargs $recursive_rm &&
+mv $VERBOSE $wc_files_path/* '$wc_path' &&
+rmdir $VERBOSE '$wc_files_path' &&
+cd '$wc_path' &&
+svn --quiet add *
 END_COMMAND
     ### add files to svn repo command: $command
 
@@ -307,9 +314,8 @@ sub commit_files {
     my $log_message = get_log_message($test_id);
 
     my $command = <<"END_COMMAND";
-pushd '$wc_path' &&
-svn commit * -m "$log_message" &&
-popd
+cd '$wc_path' &&
+svn commit * -m "$log_message"
 END_COMMAND
     ### commit files to svn repo command: $command
 

@@ -1,5 +1,9 @@
 Revision history for perlcritic-checker
 
+version 1.2.5 - 2011-02-27
+
+ - Make shell-code snippets inside tests more portable
+
 version 1.2.4 - 2011-02-26
 
  - Make tests less dependent on Perl::Critic's version
