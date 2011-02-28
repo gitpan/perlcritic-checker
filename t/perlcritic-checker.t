@@ -1,14 +1,14 @@
 #!/usr/bin/perl
 
 #===============================================================================
-#     REVISION:  $Id: perlcritic-checker.t 67 2011-02-27 16:54:31Z xdr.box $
+#     REVISION:  $Id: perlcritic-checker.t 69 2011-02-28 10:17:38Z xdr.box $
 #  DESCRIPTION:  Tests for perlcritic-checker.pl
 #===============================================================================
 
 use strict;
 use warnings;
 
-our $VERSION = qw($Revision: 67 $) [1];
+our $VERSION = qw($Revision: 69 $) [1];
 
 use Readonly;
 use Config;
@@ -203,7 +203,7 @@ sub configure_pre_commit_hook {
     my $coverage_report_opts = get_coverage_report_options();
 
     my $hook_content = <<"END_HOOK_CONTENT";
-#!/bin/bash
+#!/bin/sh
 
 REPOS="\$1"
 TXN="\$2"
